@@ -1,7 +1,4 @@
-const fs  = require('fs');
 const generate = require('babel-generator')
-
-const { writeFileSync } = fs;
 
 const keyPathVisitor = (obj,path,setValue) =>{
     const pathLength = path.length;
