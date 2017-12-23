@@ -1,125 +1,105 @@
-const fs  = require('fs');
-const generate = require('babel-generator')
+'use strict';
 
-const { writeFileSync } = fs;
+var generate = require('babel-generator');
 
-const keyPathVisitor = (obj,path,setValue) =>{
-    const pathLength = path.length;
-    return path.reduce((pre,next)=>{
-        if(pre !== setValue ){
-            const preValue = pre;
-            const nextvalue =  preValue[next]
-            return !nextvalue?
-                setValue || undefined
-                :
-                nextvalue;
-        }else{
-            return setValue || undefined
+var keyPathVisitor = function keyPathVisitor(obj, path, setValue) {
+    return path.reduce(function (pre, next) {
+        if (pre !== setValue) {
+            var preValue = pre;
+            var nextvalue = preValue[next];
+            return !nextvalue ? setValue || undefined : nextvalue;
+        } else {
+            return setValue || undefined;
         }
-    },obj)
-}
+    }, obj);
+};
 
-const a = {
-    a:
-}
-
-
-module.exports = function(babel){
-
-    const {types:t, template} = babel;
-
-    const needBindThisFuncSet = []
-    
-    let existConstructor = false;
+module.exports = function (babel) {
+    var t = babel.types,
+        template = babel.template;
 
 
-    const astFactory = {
+    var needBindThisFuncSet = [];
+
+    var existConstructor = false;
+
+    var astFactory = {
         // 为下次做准备
-        buildAssignment(left, right) {
+        buildAssignment: function buildAssignment(left, right) {
             return t.assignmentExpression("=", left, right);
         },
+
         // 为下次做准备
-        buildMemberExpression(arg){
-            return arg.reduce((pre,next,index)=>{
-                if(index === 0){
-                    return  t.memberExpression(
-                        t.identifier(pre),
-                        t.identifier(next)
-                    )
-                }else{
-                    return t.memberExpression(
-                        t.memberExpression(pre),
-                        t.identifier(next)
-                    )
+        buildMemberExpression: function buildMemberExpression(arg) {
+            return arg.reduce(function (pre, next, index) {
+                if (index === 0) {
+                    return t.memberExpression(t.identifier(pre), t.identifier(next));
+                } else {
+                    return t.memberExpression(t.memberExpression(pre), t.identifier(next));
                 }
-            })
-            return t.memberExpression
+            });
+            return t.memberExpression;
         },
-        bindThisTemplate(funcName){
-            const buildRequire = template(`
-                this.FUNCNAME = this.FUNCNAME.bind(this);
-            `);
-          
-          const ast = buildRequire({
-            FUNCNAME: t.identifier(funcName),
-          });
+        bindThisTemplate: function bindThisTemplate(funcName) {
+            var buildRequire = template('\n                this.FUNCNAME = this.FUNCNAME.bind(this);\n            ');
 
-          return ast;
+            var ast = buildRequire({
+                FUNCNAME: t.identifier(funcName)
+            });
+
+            return ast;
         }
-        
-    }
+    };
 
-    const visitForInitConfig = {
-        ClassMethod(path){
-            
-            const node = path.node;
-            const classMethodName = keyPathVisitor(node,['key','name'])
-            const decoratorName = keyPathVisitor(node,['decorators',0,'expression','name'])
-            if(decoratorName === 'autobind'){
-                const funcName = keyPathVisitor(node,['key','name'])
+    var visitForInitConfig = {
+        ClassMethod: function ClassMethod(path) {
+
+            var node = path.node;
+            var classMethodName = keyPathVisitor(node, ['key', 'name']);
+            var decoratorName = keyPathVisitor(node, ['decorators', 0, 'expression', 'name']);
+            if (decoratorName === 'autobind') {
+                var funcName = keyPathVisitor(node, ['key', 'name']);
                 needBindThisFuncSet.push(funcName);
-
             }
-            if(classMethodName === 'constructor'){
-                existConstructor = true
+            if (classMethodName === 'constructor') {
+                existConstructor = true;
             }
         }
-    }
+    };
 
-    const visitForGenerate = {
-        ClassMethod(path,state){
-            const node = path.node;
-            const classMethodName = keyPathVisitor(node,['key','name'])
+    var visitForGenerate = {
+        ClassMethod: function ClassMethod(path, state) {
+            var node = path.node;
+            var classMethodName = keyPathVisitor(node, ['key', 'name']);
 
-            if(classMethodName === 'constructor'){
-                needBindThisFuncSet.forEach((funcName)=>{
+            if (classMethodName === 'constructor') {
+                needBindThisFuncSet.forEach(function (funcName) {
                     path.get('body').pushContainer('body', astFactory.bindThisTemplate(funcName));
-                })
+                });
             }
         },
-        Decorator(path){
-            path.remove()
+        Decorator: function Decorator(path) {
+            var node = path.node;
+            var decoratorName = keyPathVisitor(node, ['expression', 'name']);
+            if (decoratorName === 'autobind') {
+                path.remove();
+            }
         }
-    }
+    };
 
-    const visitor = {
-        ClassDeclaration(path,state){
+    var visitor = {
+        ClassDeclaration: function ClassDeclaration(path, state) {
             path.traverse(visitForInitConfig, state);
 
-            if(!existConstructor){
-                path.get('body').unshiftContainer('body', t.classMethod(
-                    "constructor",
-                    t.identifier("constructor"),
-                    [],
-                    t.blockStatement([]),
-                ));
+            if (!existConstructor) {
+                path.get('body').unshiftContainer('body', t.classMethod("constructor", t.identifier("constructor"), [], t.blockStatement([])));
             }
 
             path.traverse(visitForGenerate, state);
         }
-    }
-    
+    };
+
     return {
-        visitor
-    }
-} 
+        visitor: visitor
+    };
+};

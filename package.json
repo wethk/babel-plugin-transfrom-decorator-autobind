@@ -1,6 +1,6 @@
 {
   "name": "babel-plugin-transfrom-decorator-autobind",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "fix autobind decorator lose this sometime,use babel transfrom autobind decorator to add bind code in constructor",
   "main": "index.js",
   "scripts": {
