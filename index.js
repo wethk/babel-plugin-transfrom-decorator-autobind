@@ -100,12 +100,6 @@ module.exports = function (babel) {
     };
 
     return {
-<<<<<<< HEAD
         visitor: visitor
     };
 };
-=======
-        visitor
-    }
-} 
->>>>>>> b4e720158231799356b5331cc22f033248981789
